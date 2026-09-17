@@ -178,7 +178,7 @@ function drawPlayer(p){
   const legSwing=moving?Math.sin(runPhase)*8:0;
   const armSwing=moving?Math.sin(runPhase)*7:0;
   const attackPose=p.attackTimer>Math.max(.045,p.classData.attackCooldown*.34);
-  const dodgeLean=p.dodgeTimer>0?.22:0;
+  const dodgeLean=p.dodgeTimer>0 ? .22 : 0;
   const airborne=!p.grounded;
 
   ctx.save();
@@ -203,7 +203,6 @@ function drawPlayer(p){
   ctx.moveTo(9,21);
   ctx.lineTo(10+rightLeg,45);
   ctx.stroke();
-  ctx.fillStyle='#0d1519';
   roundedRect(-18+leftLeg,40,15,9,4,'#0d1519');
   roundedRect(4+rightLeg,40,15,9,4,'#0d1519');
 
@@ -344,7 +343,7 @@ function drawEnemySprite(e){
       break;
     case 'froth':
       ctx.fillStyle='#d9edf1';
-      for(let i=0;i<5;i++){ ctx.beginPath(); ctx.arc(-15+i*8,-4+(i%2)*7,17,0,Math.PI*2); ctx.fill(); }
+      for(let i=0;i<5;i++){ ctx.beginPath(); ctx.arc(-15+i*8,-4+(i%2)*7,17,0,0,Math.PI*2); ctx.fill(); }
       ctx.fillStyle='#1d2529'; ctx.fillRect(-10,-5,6,6); ctx.fillRect(8,-5,6,6);
       break;
     case 'sample':
