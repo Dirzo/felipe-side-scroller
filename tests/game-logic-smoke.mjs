@@ -73,6 +73,7 @@ const testSource=`
     dialogue.classList.add('hidden');
     state.enemies=[];
     state.projectiles=[];
+    state.effects=[];
     return state.player;
   }
   function fireUntilResolved(enemyType){
@@ -88,6 +89,19 @@ const testSource=`
     }
     return {e,p};
   }
+
+  test('metallurgist projectile visibly aims into low rock body',()=>{
+    const p=quietGame('metallurgist');
+    p.x=180; p.y=FLOOR-p.h; p.facing=1;
+    const e=new Enemy('rock',390);
+    state.enemies=[e];
+    p.attackTimer=0;
+    p.attack();
+    const shot=state.projectiles[0];
+    if(!shot) throw new Error('no projectile created');
+    if(shot.cy<FLOOR-30) throw new Error('muzzle is still too high: '+shot.cy);
+    if(!(shot.vy>0)) throw new Error('shot is not angled down toward the low target: '+shot.vy);
+  });
 
   test('metallurgist projectile hits rocks',()=>{
     const {e}=fireUntilResolved('rock');
