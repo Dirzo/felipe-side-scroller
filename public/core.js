@@ -122,6 +122,7 @@ class Player extends Entity {
     this.combo=0;
     this.comboTimer=0;
     this.score=0;
+    this.lastAttackKind='';
   }
   update(dt){
     const c=this.classData;
@@ -175,17 +176,39 @@ class Player extends Entity {
 
     if(this.kind==='metallurgist'){
       this.attackTimer=this.classData.attackCooldown;
-      const shotY=this.y+this.h*.68;
+      this.lastAttackKind='shot';
+
+      const originX=this.cx+this.facing*30;
+      const originY=this.grounded ? FLOOR-24 : this.y+this.h*.70;
+      const candidates=state.enemies
+        .filter(e=>!e.dead && (e.cx-this.cx)*this.facing>0)
+        .sort((a,b)=>Math.abs(a.cx-this.cx)-Math.abs(b.cx-this.cx));
+      const target=candidates[0]||null;
+      const speed=720;
+      let vx=this.facing*speed;
+      let vy=0;
+
+      if(target){
+        const targetX=target.cx;
+        const targetY=target.y+target.h*.62;
+        const dx=targetX-originX;
+        const dy=targetY-originY;
+        const distance=Math.hypot(dx,dy)||1;
+        vx=dx/distance*speed;
+        vy=dy/distance*speed;
+      }
+
       state.projectiles.push(new Projectile(
-        this.cx+this.facing*30,
-        shotY,
-        this.facing*720,
-        0,
+        originX,
+        originY,
+        vx,
+        vy,
         this.classData.damage,
         'player',
         '#47d7ff',
         12
       ));
+      state.effects.push({type:'muzzle',x:originX,y:originY,t:.12,color:'#b9ff4a'});
       state.shake=Math.max(state.shake,1.5);
       return;
     }
@@ -193,6 +216,7 @@ class Player extends Entity {
     if(this.meleeWindow>0) this.meleeStep=(this.meleeStep+1)%3;
     else this.meleeStep=0;
     this.meleeWindow=.52;
+    this.lastAttackKind='melee';
 
     const finisher=this.meleeStep===2;
     const reach=this.classData.range+(this.kind==='mechanic'&&!this.grounded?30:0)+(finisher?16:0);
