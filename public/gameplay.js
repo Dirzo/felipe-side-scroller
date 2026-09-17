@@ -2,7 +2,7 @@ function initGame(kind){
   const p=new Player(kind);
   state={
     player:p,enemies:[],projectiles:[],pickups:[],effects:[],stage:0,wave:-1,
-    waveDelay:0,stageCleared:false,paused:false,gameEnded:false,shake:0,time:0,
+    waveDelay:0,waveRewarded:-1,stageCleared:false,paused:false,gameEnded:false,shake:0,time:0,
     dialogueQueue:[],dialogueActive:false,bgScroll:0,bannerTimer:0,objectivePulse:0
   };
   classLabel.textContent=CLASSES[kind].label;
@@ -16,6 +16,7 @@ function initGame(kind){
 function startStage(index){
   state.stage=index;
   state.wave=-1;
+  state.waveRewarded=-1;
   state.enemies=[];
   state.projectiles=[];
   state.pickups=[];
@@ -67,8 +68,36 @@ function spawnWave(){
   for(const group of stage.waves[state.wave]){
     for(let i=0;i<group.count;i++){
       const side=(slot++%2===0)?1:-1;
-      const x=side>0?W+50+i*64:-140-i*64;
+      const x=side>0?W+50+i*68:-140-i*68;
       state.enemies.push(new Enemy(group.type,x));
+    }
+  }
+}
+
+function rewardWaveClear(){
+  if(state.wave<0 || state.waveRewarded===state.wave) return;
+  state.waveRewarded=state.wave;
+  const heal=Math.max(4,Math.round(state.player.maxHp*.06));
+  state.player.heal(heal);
+  state.player.special=Math.min(100,state.player.special+10);
+  showBanner(`BREATHER // +${heal} HP // +10% SPECIAL`,700);
+}
+
+function separateEnemies(){
+  const enemies=state.enemies.filter(e=>!e.dead);
+  for(let i=0;i<enemies.length;i++){
+    for(let j=i+1;j<enemies.length;j++){
+      const a=enemies[i];
+      const b=enemies[j];
+      const target=(a.w+b.w)*.34;
+      const dx=b.cx-a.cx;
+      const dist=Math.abs(dx);
+      if(dist>0 && dist<target){
+        const push=Math.min(4,(target-dist)*.08);
+        const dir=Math.sign(dx);
+        if(a.type!=='stator') a.x-=dir*push;
+        if(b.type!=='stator') b.x+=dir*push;
+      }
     }
   }
 }
@@ -96,6 +125,7 @@ function update(dt){
   state.bgScroll+=state.player.vx*dt*.13;
 
   for(const e of state.enemies) e.update(dt);
+  separateEnemies();
   for(const p of state.projectiles) p.update(dt);
   for(const p of state.pickups) p.update(dt);
   updateEffects(dt);
@@ -109,7 +139,8 @@ function update(dt){
       state.waveDelay-=dt;
       if(state.waveDelay<=0) spawnWave();
     }else if(state.wave>=0 && !state.stageCleared){
-      state.waveDelay=.8;
+      rewardWaveClear();
+      state.waveDelay=.9;
     }
   }
 
