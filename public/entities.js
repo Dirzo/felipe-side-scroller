@@ -1,3 +1,19 @@
+function aimedVelocity(x,y,targetX,targetY,speed,angleOffset=0){
+  const angle=Math.atan2(targetY-y,targetX-x)+angleOffset;
+  return {vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed};
+}
+
+function circleRectHit(projectile,target,pad=0){
+  const radius=projectile.r+pad;
+  const cx=projectile.cx;
+  const cy=projectile.cy;
+  const nearestX=Math.max(target.x,Math.min(cx,target.x+target.w));
+  const nearestY=Math.max(target.y,Math.min(cy,target.y+target.h));
+  const dx=cx-nearestX;
+  const dy=cy-nearestY;
+  return dx*dx+dy*dy<=radius*radius;
+}
+
 class Enemy extends Entity {
   constructor(type,x){
     const defs={
@@ -11,7 +27,10 @@ class Enemy extends Entity {
     };
     const d=defs[type];
     super(x,FLOOR-d.h,d.w,d.h);
-    Object.assign(this,{type,maxHp:d.hp,hp:d.hp,speed:d.speed,damage:d.damage,xp:d.xp,color:d.color,attackCd:Math.random()*.8,stun:0,slow:0,phase:0});
+    Object.assign(this,{
+      type,maxHp:d.hp,hp:d.hp,speed:d.speed,damage:d.damage,xp:d.xp,color:d.color,
+      attackCd:Math.random()*.8,stun:0,slow:0,phase:0
+    });
   }
   update(dt){
     if(this.dead) return;
@@ -19,45 +38,56 @@ class Enemy extends Entity {
     this.slow=Math.max(0,this.slow-dt);
     this.attackCd=Math.max(0,this.attackCd-dt);
     if(this.stun>0) return;
+
     const p=state.player;
     const dir=Math.sign(p.cx-this.cx)||1;
     const dist=Math.abs(p.cx-this.cx);
-    const mult=this.slow>0 ? .45 : 1;
+    const mult=this.slow>0?.45:1;
+    const verticalClose=Math.abs(p.cy-this.cy)<(p.h+this.h)*.43;
+
     if(this.type==='stator'){
-      this.updateBoss(dt,dir,dist);
+      this.updateBoss(dt,dir,dist,verticalClose);
       return;
     }
-    if(this.type==='sample' && dist<410 && this.attackCd<=0){
-      state.projectiles.push(new Projectile(this.cx,this.cy-10,dir*380,-40,12,'enemy','#c490f0',9));
-      this.attackCd=1.7;
+
+    if(this.type==='sample' && dist<430 && this.attackCd<=0){
+      const shot=aimedVelocity(this.cx,this.cy-10,p.cx,p.cy,410);
+      state.projectiles.push(new Projectile(this.cx,this.cy-10,shot.vx,shot.vy,12,'enemy','#c490f0',9));
+      this.attackCd=1.65;
       return;
     }
-    if(this.type==='spark' && dist<380 && this.attackCd<=0){
-      state.projectiles.push(new Projectile(this.cx,this.cy,dir*520,0,10,'enemy','#79e7ff',7));
-      this.attackCd=1.25;
+
+    if(this.type==='spark' && dist<400 && this.attackCd<=0){
+      const shot=aimedVelocity(this.cx,this.cy,p.cx,p.cy,545);
+      state.projectiles.push(new Projectile(this.cx,this.cy,shot.vx,shot.vy,10,'enemy','#79e7ff',7));
+      this.attackCd=1.18;
       return;
     }
-    if(dist>this.w*.55+p.w*.55+10){
+
+    const meleeRange=this.w*.55+p.w*.55+10;
+    if(dist>meleeRange || !verticalClose){
       this.x += dir*this.speed*mult*dt;
     }else if(this.attackCd<=0){
       p.hurt(this.damage,dir*140);
       this.attackCd=this.type==='forklift'?1.45:1.05;
     }
   }
-  updateBoss(dt,dir,dist){
+  updateBoss(dt,dir,dist,verticalClose){
     const p=state.player;
     this.phase += dt;
     if(this.hp<this.maxHp*.55) this.speed=125;
+
     if(this.attackCd<=0){
-      if(dist<175){
+      if(dist<175 && verticalClose){
         p.hurt(this.damage,dir*240);
         this.attackCd=1.1;
         state.shake=10;
-      }else if(Math.random()<.48){
-        for(let i=-1;i<=1;i++){
-          state.projectiles.push(new Projectile(this.cx,this.cy-30,dir*(390+i*50),i*120,15,'enemy','#ff9b69',13));
+      }else if(Math.random()<.5){
+        for(const offset of [-.13,0,.13]){
+          const shot=aimedVelocity(this.cx,this.cy-20,p.cx,p.cy,465,offset);
+          state.projectiles.push(new Projectile(this.cx,this.cy-20,shot.vx,shot.vy,15,'enemy','#ff9b69',13));
         }
-        this.attackCd=1.7;
+        this.attackCd=this.hp<this.maxHp*.55?1.35:1.62;
       }else{
         const currentState=state;
         const bx=p.cx;
@@ -65,15 +95,20 @@ class Enemy extends Entity {
         setTimeout(()=>{
           if(state!==currentState||!state||state.gameEnded) return;
           state.effects.push({type:'blast',x:bx,y:FLOOR-12,t:.4,color:'#ff9d39'});
-          if(Math.abs(state.player.cx-bx)<92){
+          const nearBlast=Math.abs(state.player.cx-bx)<92;
+          const nearGround=state.player.y+state.player.h>FLOOR-64;
+          if(nearBlast&&nearGround){
             const knock=state.player.cx<bx?-180:180;
             state.player.hurt(20,knock);
           }
         },580);
-        this.attackCd=1.9;
+        this.attackCd=this.hp<this.maxHp*.55?1.5:1.85;
       }
     }
-    if(dist>145) this.x += dir*this.speed*dt;
+
+    if(dist>145 || !verticalClose){
+      this.x += dir*this.speed*dt;
+    }
   }
   hurt(amount,knock=0){
     if(this.dead) return;
@@ -88,8 +123,12 @@ class Enemy extends Entity {
       state.player.score+=Math.round(this.xp*(1+state.player.combo*.08));
       state.player.combo++;
       state.player.comboTimer=2.1;
-      if(Math.random()<.17 && this.type!=='stator') state.pickups.push(new Pickup(this.cx,this.y,'health'));
-      if(this.type==='stator') state.pickups.push(new Pickup(this.cx,this.y,'golden'));
+      if(Math.random()<.2 && this.type!=='stator'){
+        state.pickups.push(new Pickup(this.cx,this.y,'health'));
+      }
+      if(this.type==='stator'){
+        state.pickups.push(new Pickup(this.cx,this.y,'golden'));
+      }
       state.effects.push({type:'burst',x:this.cx,y:this.cy,t:.45,color:this.color});
     }
   }
@@ -105,19 +144,21 @@ class Projectile extends Entity {
     this.x+=this.vx*dt;
     this.y+=this.vy*dt;
     this.vy += (this.owner==='enemy'?50:0)*dt;
+
     if(this.life<=0||this.x<-80||this.x>W+80||this.y<-80||this.y>H+80){
       this.dead=true;
       return;
     }
+
     if(this.owner==='player'){
       for(const e of state.enemies){
-        if(!e.dead&&overlap(this,e)){
-          e.hurt(this.damage,Math.sign(this.vx)*170);
+        if(!e.dead&&circleRectHit(this,e,5)){
+          e.hurt(this.damage,Math.sign(this.vx)*180);
           this.dead=true;
           break;
         }
       }
-    }else if(overlap(this,state.player)){
+    }else if(circleRectHit(this,state.player,2)){
       state.player.hurt(this.damage,Math.sign(this.vx)*130);
       this.dead=true;
     }
