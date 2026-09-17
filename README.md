@@ -43,3 +43,5 @@ For Cloudflare Git integration, leave the build command blank and use the defaul
 - Responsive canvas that works in a desktop browser and scales down for mobile
 
 All visuals are original procedural/canvas art; there are no copied game sprites or assets.
+
+Deployment trigger: 2026-09-17 09:45 AKDT.
