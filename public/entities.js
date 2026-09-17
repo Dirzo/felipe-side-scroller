@@ -42,7 +42,7 @@ class Enemy extends Entity {
     const p=state.player;
     const dir=Math.sign(p.cx-this.cx)||1;
     const dist=Math.abs(p.cx-this.cx);
-    const mult=this.slow>0?.45:1;
+    const mult=this.slow>0 ? .45 : 1;
     const verticalClose=Math.abs(p.cy-this.cy)<(p.h+this.h)*.43;
 
     if(this.type==='stator'){
