@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
+    "test": "node tests/game-logic-smoke.mjs",
+    "check": "node --check public/core.js && node --check public/entities.js && node --check public/gameplay.js && node --check public/render.js && node --check public/boot.js",
     "deploy": "wrangler deploy"
   },
   "devDependencies": {
